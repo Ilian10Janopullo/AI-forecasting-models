@@ -10,10 +10,8 @@ from tensorflow.keras.callbacks import EarlyStopping # type: ignore
 import matplotlib.pyplot as plt
 from statsmodels.tsa.seasonal import seasonal_decompose
 
-
-
 # Step 1: Data Preparation
-file_path = 'Data Sources/RealGDP.csv'  # Ensure this path is correct
+file_path = 'Data Sources/RealGDP.csv' 
 data = pd.read_csv(file_path, encoding='latin1', skiprows=11)
 
 # Set the first row as header
