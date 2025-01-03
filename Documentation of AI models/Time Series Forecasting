@@ -1,0 +1,127 @@
+Full Documentation of the GDP Forecasting Model
+
+1. Introduction
+
+This model forecasts the GDP trend for a specific country, Albania, using historical GDP data. It leverages a GRU (Gated Recurrent Unit) neural network for time-series forecasting, combined with robust preprocessing and feature engineering. The model predicts future GDP trends based on historical data, considering both the smoothed GDP trend and growth rates as input features.
+
+2. Workflow Overview
+
+Data Preparation:
+
+Load and clean historical GDP data for the target country.
+
+Perform time-series decomposition to extract the GDP trend.
+
+Compute and smooth the year-over-year growth rates.
+
+Preprocessing:
+
+Normalize and scale input features (Trend, GrowthRate).
+
+Create sequential datasets for time-series forecasting.
+
+Modeling:
+
+Use a GRU-based recurrent neural network with regularization and dropout layers to prevent overfitting.
+
+Evaluation:
+
+Evaluate the model using metrics like RMSE, MAE, SMAPE, and R².
+
+Perform residual analysis to identify prediction errors.
+
+Forecasting:
+
+Predict future GDP trends for a specified number of years.
+
+Visualization:
+
+Plot the true GDP trend, training and test predictions, and forecasted trends.
+
+3. Detailed Steps
+
+Step 1: Data Preparation
+
+Loading the Dataset
+
+The dataset is loaded from a CSV file. The first few rows are skipped to account for metadata, and the first row is used as headers.
+
+Filtering Data for Albania
+
+The data is filtered to include only rows corresponding to Albania.
+
+Time-Series Transformation
+
+The dataset is transposed so that years become rows, and GDP values are the column data.
+
+Decomposing the Time Series
+
+Seasonal decomposition is used to extract the trend component from the GDP data.
+
+Calculating Growth Rates
+
+Year-over-year growth rates are calculated and smoothed using a rolling average.
+
+Step 2: Preprocessing
+
+Feature Scaling
+
+Both the trend and growth rate features are normalized using RobustScaler to mitigate the effect of outliers.
+
+Sequence Creation
+
+Sequences are created for time-series forecasting, where each sequence consists of 10 time steps (time_steps) and the associated GDP trend for the next step.
+
+Step 3: Model Development
+
+GRU Architecture
+
+The model uses two GRU layers with dropout for regularization, followed by dense layers for prediction.
+
+Loss Function and Metrics
+
+The model is compiled with the Huber loss function and MAPE as the evaluation metric.
+
+Step 4: Training the Model
+
+Early Stopping
+
+To prevent overfitting, early stopping is applied, monitoring the validation loss.
+
+Model Training
+
+The model is trained using 70% of the data for training and 30% for testing.
+
+Step 5: Model Evaluation
+
+Metrics
+
+Performance metrics such as RMSE, MAE, SMAPE, and R² are calculated.
+
+Residual Analysis
+
+Residuals are calculated and plotted to analyze prediction errors.
+
+Step 6: Forecasting
+
+Predicting Future GDP Trends
+
+The model generates forecasts for the next 10 years using the last sequence of data.
+
+Reverse Transformations
+
+The forecasts are transformed back to their original scale using inverse transformations.
+
+7. Key Outputs
+
+Training and Test Metrics:
+
+RMSE, MAE, SMAPE, and R² values indicate the model's performance.
+
+Residual Plot:
+
+Visualizes the distribution of prediction errors.
+
+Trend Forecast:
+
+The model generates predictions for future GDP trends.
