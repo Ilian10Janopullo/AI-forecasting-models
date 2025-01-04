@@ -60,9 +60,10 @@ input_shape = (X_train.shape[1], X_train.shape[2])
 model = Sequential([
     GRU(64, return_sequences=False, kernel_regularizer=l2(0.04), input_shape=input_shape),
     Dropout(0.323),
-    Dense(64),
-    Dense(64, activation=swish),  # Swish activation in hidden layer
-    Dense(1, activation='linear')  # Linear for regression output
+    Dense(32),
+    Dense(16, activation=swish),   # Swish activation in hidden layer
+    Dense(16, activation='linear'),  # Linear for regression output
+    Dense(1)
 ])
 
 # Compile the model
