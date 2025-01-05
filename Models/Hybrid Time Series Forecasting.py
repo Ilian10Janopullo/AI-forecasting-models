@@ -47,8 +47,8 @@ arima_predictions = arima_fit.fittedvalues
 
 # Compute residuals
 residuals = data['Real GDP'] - arima_predictions
-residuals_smoothed = residuals.rolling(window=20).mean().fillna(method='bfill')
-residuals_scaled = (residuals_smoothed - residuals_smoothed.mean()) / residuals_smoothed.std()
+residuals = residuals.iloc[1:]
+residuals_scaled = (residuals - residuals.mean()) / residuals.std()
 
 # Step 2: Prepare Residuals for GRU
 def create_sequences(data, time_steps):
@@ -77,10 +77,10 @@ X_train = X_train.reshape(X_train.shape[0], X_train.shape[1], 1)
 X_test = X_test.reshape(X_test.shape[0], X_test.shape[1], 1)
 
 gru_model = Sequential([
-    GRU(64, return_sequences=True, input_shape=input_shape, kernel_regularizer=l2(0.05)),
-    Dropout(0.4),
-    GRU(32, return_sequences=False, kernel_regularizer=l2(0.05)),
-    Dense(32, activation='relu'),
+    GRU(32, return_sequences=True, input_shape=input_shape, kernel_regularizer=l2(0.01)),
+    Dropout(0.5),
+    GRU(16, return_sequences=False, kernel_regularizer=l2(0.01)),
+    Dense(8, activation='linear'),
     Dense(1, activation='linear')
 ])
 
@@ -119,6 +119,7 @@ print(f"Train RMSE: {train_rmse:.2f}, Train MAE: {train_mae:.2f}, Train R²: {tr
 print(f"Test RMSE: {test_rmse:.2f}, Test MAE: {test_mae:.2f}, Test R²: {test_r2:.2f}")
 
 # Visualize Final Predictions with Training Data
+
 plt.figure(figsize=(14, 7))
 plt.plot(data['Year'], data['Real GDP'], label='Actual', color='blue')
 plt.plot(data['Year'][:len(arima_predictions)], arima_predictions + residuals.mean(), label='ARIMA Predictions', color='green')
