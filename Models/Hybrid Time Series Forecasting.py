@@ -28,6 +28,8 @@ data = data[['Year'] + features_to_use]
 data[features_to_use] = data[features_to_use].applymap(lambda x: max(x, 1e-2))
 
 # Normalize all features
+real_gdp_min = data['Real GDP'].min()
+real_gdp_max = data['Real GDP'].max()
 scaler = MinMaxScaler()
 data[features_to_use] = scaler.fit_transform(data[features_to_use])
 
@@ -125,11 +127,20 @@ test_smap = 100 * test_mae / np.mean(data['Real GDP'][-len(final_predictions):])
 print(f"Train RMSE: {train_rmse:.2f}, Train MAE: {train_mae:.2f}, Train R²: {train_r2:.2f}, Train SMAPE: {train_smap:.2f}%")
 print(f"Test RMSE: {test_rmse:.2f}, Test MAE: {test_mae:.2f}, Test R²: {test_r2:.2f}, Test SMAPE: {test_smap:.2f}%")
 
+def manual_inverse_transform(scaled_values, original_min, original_max):
+    return scaled_values * (original_max - original_min) + original_min
+
+meta_train_predictions_original = manual_inverse_transform(arima_predictions[:len(X_train)], real_gdp_min, real_gdp_max)
+final_predictions_original = manual_inverse_transform(final_predictions, real_gdp_min, real_gdp_max)
+
+# Inverse transform Real GDP in the dataset
+data['Real GDP'] = manual_inverse_transform(data['Real GDP'], real_gdp_min, real_gdp_max)
+
 # Visualize Final Predictions with Training and Testing Information
 plt.figure(figsize=(14, 7))
 plt.plot(data['Year'], data['Real GDP'], label='Actual', color='blue')
-plt.plot(data['Year'][:len(meta_train_predictions)], meta_train_predictions, label='Train Predictions', color='orange')
-plt.plot(data['Year'][-len(final_predictions):], final_predictions, label='Test Predictions', color='red')
+plt.plot(data['Year'][:len(meta_train_predictions_original)], meta_train_predictions_original, label='Train Predictions', color='orange')
+plt.plot(data['Year'][-len(final_predictions_original):], final_predictions_original, label='Test Predictions', color='red')
 plt.legend()
 plt.title('Optimized ARIMA-GRU Hybrid Model with Meta-Model: Training and Testing Predictions')
 plt.xlabel('Year')
