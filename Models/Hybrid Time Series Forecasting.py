@@ -1,7 +1,8 @@
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import RobustScaler
+from sklearn.preprocessing import MinMaxScaler, RobustScaler
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from sklearn.linear_model import LinearRegression
 from tensorflow.keras.models import Sequential # type: ignore
 from tensorflow.keras.layers import GRU, Dense, Dropout # type: ignore
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau # type: ignore
@@ -26,8 +27,9 @@ data = data[['Year'] + features_to_use]
 # Handle very small values
 data[features_to_use] = data[features_to_use].applymap(lambda x: max(x, 1e-2))
 
-# Smooth features using a moving average
-data[features_to_use] = data[features_to_use].rolling(window=3).mean().fillna(method='bfill')
+# Normalize all features
+scaler = MinMaxScaler()
+data[features_to_use] = scaler.fit_transform(data[features_to_use])
 
 # Step 1: Fit ARIMA Model with Exogenous Variables
 exog_features = ['GDP Growth Rate', 'Population', 'Population Growth Rate',
@@ -41,7 +43,7 @@ def fit_arima(data, order, exog=None):
     arima_fit = arima_model.fit()
     return arima_fit
 
-arima_order = (2, 1, 3)
+arima_order = (2, 1, 2)
 arima_fit = fit_arima(data['Real GDP'], arima_order, exog=exog)
 arima_predictions = arima_fit.fittedvalues
 
@@ -90,43 +92,46 @@ reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=5, min_lr
 
 history = gru_model.fit(X_train, y_train, validation_data=(X_test, y_test), epochs=100, batch_size=16, callbacks=[early_stopping, reduce_lr])
 
-# Step 4: Combine Predictions
-def dynamic_combination(arima_preds, gru_preds, residuals):
-    alpha = 1 - (np.abs(residuals).mean() / np.abs(arima_preds).mean())
-    beta = 1 - alpha
-    return alpha * arima_preds + beta * gru_preds
-
+# Step 4: Combine Predictions using Meta-Model
 arima_test_predictions = arima_fit.forecast(steps=len(y_test), exog=exog.iloc[-len(y_test):])
 gru_test_predictions = gru_model.predict(X_test).flatten()
 
-final_predictions = dynamic_combination(arima_test_predictions, gru_test_predictions * residuals.std() + residuals.mean(), residuals)
+# Prepare meta-model inputs
+meta_inputs = np.column_stack((arima_test_predictions, gru_test_predictions))
+meta_model = LinearRegression()
+
+# Train meta-model
+meta_model.fit(meta_inputs, data['Real GDP'][-len(y_test):])
+
+# Make final predictions
+final_predictions = meta_model.predict(meta_inputs)
 
 # Evaluate
 train_predictions_arima = arima_predictions[:len(X_train)]
 train_predictions_gru = gru_model.predict(X_train).flatten() * residuals.std() + residuals.mean()
-train_predictions = dynamic_combination(train_predictions_arima, train_predictions_gru, residuals[:len(X_train)])
+meta_train_inputs = np.column_stack((train_predictions_arima, train_predictions_gru))
+meta_train_predictions = meta_model.predict(meta_train_inputs)
 
-valid_indices = range(len(train_predictions))
-train_rmse = np.sqrt(mean_squared_error(y_train[valid_indices], train_predictions[valid_indices]))
-train_mae = mean_absolute_error(y_train[valid_indices], train_predictions[valid_indices])
-train_r2 = r2_score(y_train[valid_indices], train_predictions[valid_indices])
+train_rmse = np.sqrt(mean_squared_error(data['Real GDP'][:len(meta_train_predictions)], meta_train_predictions))
+train_mae = mean_absolute_error(data['Real GDP'][:len(meta_train_predictions)], meta_train_predictions)
+train_r2 = r2_score(data['Real GDP'][:len(meta_train_predictions)], meta_train_predictions)
+train_smap = 100 * train_mae / np.mean(data['Real GDP'][:len(meta_train_predictions)])
 
 test_rmse = np.sqrt(mean_squared_error(data['Real GDP'][-len(final_predictions):], final_predictions))
 test_mae = mean_absolute_error(data['Real GDP'][-len(final_predictions):], final_predictions)
 test_r2 = r2_score(data['Real GDP'][-len(final_predictions):], final_predictions)
+test_smap = 100 * test_mae / np.mean(data['Real GDP'][-len(final_predictions):])
 
-print(f"Train RMSE: {train_rmse:.2f}, Train MAE: {train_mae:.2f}, Train R²: {train_r2:.2f}")
-print(f"Test RMSE: {test_rmse:.2f}, Test MAE: {test_mae:.2f}, Test R²: {test_r2:.2f}")
+print(f"Train RMSE: {train_rmse:.2f}, Train MAE: {train_mae:.2f}, Train R²: {train_r2:.2f}, Train SMAPE: {train_smap:.2f}%")
+print(f"Test RMSE: {test_rmse:.2f}, Test MAE: {test_mae:.2f}, Test R²: {test_r2:.2f}, Test SMAPE: {test_smap:.2f}%")
 
-# Visualize Final Predictions with Training Data
-
+# Visualize Final Predictions with Training and Testing Information
 plt.figure(figsize=(14, 7))
 plt.plot(data['Year'], data['Real GDP'], label='Actual', color='blue')
-plt.plot(data['Year'][:len(arima_predictions)], arima_predictions + residuals.mean(), label='ARIMA Predictions', color='green')
-plt.plot(data['Year'][:len(train_predictions)], train_predictions, label='Train Predictions (ARIMA + GRU)', color='orange')
-plt.plot(data['Year'][-len(final_predictions):], final_predictions, label='Test Predictions (ARIMA + GRU)', color='red')
+plt.plot(data['Year'][:len(meta_train_predictions)], meta_train_predictions, label='Train Predictions', color='orange')
+plt.plot(data['Year'][-len(final_predictions):], final_predictions, label='Test Predictions', color='red')
 plt.legend()
-plt.title('Optimized ARIMA-GRU Hybrid Model with Exogenous Variables: Training and Testing Predictions')
+plt.title('Optimized ARIMA-GRU Hybrid Model with Meta-Model: Training and Testing Predictions')
 plt.xlabel('Year')
 plt.ylabel('Real GDP')
 plt.show()
