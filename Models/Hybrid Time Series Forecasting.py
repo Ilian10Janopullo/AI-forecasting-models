@@ -146,3 +146,30 @@ plt.title('Optimized ARIMA-GRU Hybrid Model with Meta-Model: Training and Testin
 plt.xlabel('Year')
 plt.ylabel('Real GDP')
 plt.show()
+
+# Step 5: Generate Future Forecasts
+future_years = np.arange(data['Year'].iloc[-1] + 1, data['Year'].iloc[-1] + 11)
+future_exog = np.tile(exog.iloc[-1:].values, (10, 1))  # Repeat last row of exog variables
+arima_future_forecast = arima_fit.forecast(steps=10, exog=future_exog)
+
+future_residuals = residuals_scaled[-time_steps:].values.reshape(1, time_steps, 1)
+gru_future_forecast = []
+for _ in range(10):
+    future_prediction = gru_model.predict(future_residuals).flatten()[0]
+    gru_future_forecast.append(future_prediction)
+    future_residuals = np.append(future_residuals.flatten()[1:], [future_prediction]).reshape(1, time_steps, 1)
+
+gru_future_forecast = np.array(gru_future_forecast)
+future_meta_inputs = np.column_stack((arima_future_forecast, gru_future_forecast))
+future_predictions = meta_model.predict(future_meta_inputs)
+
+# Blended Forecast Calculation
+future_trend = np.polyval(np.polyfit(data['Year'], data['Real GDP'], 2), future_years)
+future_predictions_original = manual_inverse_transform(future_predictions, real_gdp_min, real_gdp_max)
+combined_forecast = 0.7 * future_trend + 0.3 * future_predictions_original
+
+# Display the Blended Forecast
+forecast_next_10_years = np.column_stack((future_years, combined_forecast))
+forecast_df = pd.DataFrame(forecast_next_10_years, columns=['Year', 'Blended Real GDP Forecast'])
+print("\nBlended Forecast for the Next 10 Years:")
+print(forecast_df)
