@@ -9,10 +9,12 @@ from tensorflow.keras.regularizers import l2 # type: ignore
 from tensorflow.keras.callbacks import EarlyStopping # type: ignore
 from tensorflow.keras.activations import swish # type: ignore
 import matplotlib.pyplot as plt
+from DataPreparation import normalize
 
 
 # Load the new dataset
-file_path = 'Data Sources/Albania Information.csv'
+normalize()
+file_path = 'Data Sources/Normalized_Albania_Information.csv'
 data = pd.read_csv(file_path)
 
 # Data Preparation
@@ -25,11 +27,6 @@ features_to_use = ['Real GDP', 'GDP Growth Rate', 'Population', 'Population Grow
                    'GDP deflator', 'GDP deflator growth rates', 'CPI', 'CPI Growth Rate']
 data = data[['Year'] + features_to_use]
 
-# Handle very small values
-data[features_to_use] = data[features_to_use].applymap(lambda x: max(x, 1e-2))
-
-# Smooth features using a moving average
-data[features_to_use] = data[features_to_use].rolling(window=3).mean().fillna(method='bfill')
 
 # Create sequences for the GRU model
 def create_sequences(data, time_steps=10):

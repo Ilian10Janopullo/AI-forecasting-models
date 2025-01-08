@@ -10,13 +10,15 @@ from tensorflow.keras.regularizers import l2 # type: ignore
 from tensorflow.keras.losses import Huber # type: ignore
 from statsmodels.tsa.arima.model import ARIMA
 import matplotlib.pyplot as plt
+from DataPreparation import normalize, getMin, getMax
 
 # Step 0: Load the dataset
-file_path = 'Data Sources/Albania Information.csv'
+normalize()
+file_path = 'Data Sources/Normalized_Albania_Information.csv'
 data = pd.read_csv(file_path)
 
-# Data Preparation
-data = data.interpolate(method='linear').fillna(method='bfill').fillna(method='ffill')
+real_gdp_min = getMin()
+real_gdp_max = getMax()
 
 # Feature selection
 features_to_use = ['Real GDP', 'GDP Growth Rate', 'Population', 'Population Growth Rate',
@@ -24,20 +26,15 @@ features_to_use = ['Real GDP', 'GDP Growth Rate', 'Population', 'Population Grow
                    'GDP deflator', 'GDP deflator growth rates', 'CPI', 'CPI Growth Rate']
 data = data[['Year'] + features_to_use]
 
-# Handle very small values
-data[features_to_use] = data[features_to_use].applymap(lambda x: max(x, 1e-2))
-
-# Normalize all features
-real_gdp_min = data['Real GDP'].min()
-real_gdp_max = data['Real GDP'].max()
-scaler = MinMaxScaler()
-data[features_to_use] = scaler.fit_transform(data[features_to_use])
-
 # Step 1: Fit ARIMA Model with Exogenous Variables
 exog_features = ['GDP Growth Rate', 'Population', 'Population Growth Rate',
                  'Real GDP per capita', 'Real GDP per capita growth rate',
                  'GDP deflator', 'GDP deflator growth rates', 'CPI', 'CPI Growth Rate']
 exog = data[exog_features]
+
+exog.fillna(method='ffill', inplace=True)  # Forward fill
+exog.fillna(method='bfill', inplace=True)  # Backward fill
+exog.fillna(0, inplace=True)  # Replace NaNs with 0 (useful for percentages)
 
 # Fit ARIMA Model
 def fit_arima(data, order, exog=None):
