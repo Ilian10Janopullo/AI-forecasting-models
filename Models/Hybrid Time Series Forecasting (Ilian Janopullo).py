@@ -11,9 +11,12 @@ from tensorflow.keras.losses import Huber # type: ignore
 from statsmodels.tsa.arima.model import ARIMA
 import matplotlib.pyplot as plt
 from DataPreparation import normalize, getMin, getMax
+import os.path
 
 # Step 0: Load the dataset
-normalize()
+if(not os.path.exists("/Data Sources/Normalized_Albania_Information.csv")):
+    normalize()
+
 file_path = 'Data Sources/Normalized_Albania_Information.csv'
 data = pd.read_csv(file_path)
 

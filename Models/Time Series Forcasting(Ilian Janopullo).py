@@ -10,10 +10,12 @@ from tensorflow.keras.callbacks import EarlyStopping # type: ignore
 from tensorflow.keras.activations import swish # type: ignore
 import matplotlib.pyplot as plt
 from DataPreparation import normalize
-
+import os.path
 
 # Load the new dataset
-normalize()
+if(not os.path.exists("/Data Sources/Normalized_Albania_Information.csv")):
+    normalize()
+
 file_path = 'Data Sources/Normalized_Albania_Information.csv'
 data = pd.read_csv(file_path)
 
