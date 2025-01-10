@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from sklearn.model_selection import train_test_split
 from tensorflow.keras.models import Sequential #type: ignore
 from tensorflow.keras.layers import GRU, Dense, Dropout #type: ignore
 from tensorflow.keras.losses import Huber #type: ignore
@@ -51,9 +52,8 @@ time_steps = 10
 X, y = create_sequences(combined_data, time_steps)
 
 # Split into train and test sets
-train_size = int(len(X) * 0.8)
-X_train, X_test = X[:train_size], X[train_size:]
-y_train, y_test = y[:train_size], y[train_size:]
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
 
 # Build the GRU Model
 input_shape = (X_train.shape[1], X_train.shape[2])
@@ -62,7 +62,7 @@ model = Sequential([
     Dropout(0.323),
     Dense(32),
     Dense(16, activation=swish),
-    Dense(16, activation='linear'),
+    Dense(8, activation='linear'),
     Dense(1)
 ])
 
