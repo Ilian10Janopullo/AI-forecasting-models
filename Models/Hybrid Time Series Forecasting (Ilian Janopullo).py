@@ -12,9 +12,10 @@ from statsmodels.tsa.arima.model import ARIMA
 import matplotlib.pyplot as plt
 from DataPreparation import normalize, getMin, getMax
 import os.path
+from tensorflow.keras.utils import plot_model #type: ignore
 
 # Step 0: Load the dataset
-if(not os.path.exists("/Data Sources/Normalized_Albania_Information.csv")):
+if(not os.path.exists("Data Sources/Normalized_Albania_Information.csv")):
     normalize()
 
 file_path = 'Data Sources/Normalized_Albania_Information.csv'
@@ -182,3 +183,6 @@ plt.title('Predicted Real GDP (2035–2044)')
 plt.legend()
 plt.grid(True)
 plt.show()
+
+if not os.path.exists("Models Architecture/gru_model_hybrid_architecture.png"):
+    plot_model(gru_model, to_file="Models Architecture/gru_model_hybrid_architecture.png", show_shapes=True, show_layer_names=True, expand_nested=True)

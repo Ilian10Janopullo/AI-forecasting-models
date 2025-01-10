@@ -11,9 +11,10 @@ from tensorflow.keras.activations import swish #type: ignore
 import matplotlib.pyplot as plt
 from DataPreparation import normalize, getMax, getMin
 import os.path
+from tensorflow.keras.utils import plot_model #type: ignore
 
 # Load the dataset
-if not os.path.exists("/Data Sources/Normalized_Albania_Information.csv"):
+if not os.path.exists("Data Sources/Normalized_Albania_Information.csv"):
     normalize()
 
 file_path = 'Data Sources/Normalized_Albania_Information.csv'
@@ -163,3 +164,8 @@ plt.title('Blended Predicted Real GDP (2035–2044)')
 plt.legend()
 plt.grid(True)
 plt.show()
+
+
+
+if not os.path.exists("Models Architecture/gru_model_architecture.png"):
+    plot_model(model, to_file="Models Architecture/gru_model_architecture.png", show_shapes=True, show_layer_names=True, expand_nested=True)
