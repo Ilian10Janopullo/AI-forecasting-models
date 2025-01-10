@@ -3,8 +3,8 @@ import numpy as np
 from scipy.optimize import curve_fit
 from sklearn.preprocessing import MinMaxScaler
 
-real_gdp_min = 0
-real_gdp_max = 0
+real_gdp_min = 3.37
+real_gdp_max = 21.81
 
 def normalize():
     # Load data
