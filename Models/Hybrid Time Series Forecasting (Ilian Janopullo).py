@@ -164,12 +164,21 @@ future_meta_inputs = np.column_stack((arima_future_forecast, gru_future_forecast
 future_predictions = meta_model.predict(future_meta_inputs)
 
 # Blended Forecast Calculation
-future_trend = np.polyval(np.polyfit(data['Year'], data['Real GDP'], 2), future_years)
+future_trend = np.polyval(np.polyfit(data['Year'], data['Real GDP'], deg=2), future_years)
 future_predictions_original = manual_inverse_transform(future_predictions, real_gdp_min, real_gdp_max)
-combined_forecast = 0.7 * future_trend + 0.3 * future_predictions_original
+combined_forecast = 0.2 * future_trend + 0.8 * future_predictions_original
 
 # Display the Blended Forecast
 forecast_next_10_years = np.column_stack((future_years, combined_forecast))
 forecast_df = pd.DataFrame(forecast_next_10_years, columns=['Year', 'Blended Real GDP Forecast'])
 print("\nBlended Forecast for the Next 10 Years:")
 print(forecast_df)
+
+plt.figure(figsize=(10, 6))
+plt.plot(forecast_df['Year'], forecast_df['Blended Real GDP Forecast'], marker='o', label='Predicted Real GDP')
+plt.xlabel('Year')
+plt.ylabel('Real GDP')
+plt.title('Predicted Real GDP (2035–2044)')
+plt.legend()
+plt.grid(True)
+plt.show()

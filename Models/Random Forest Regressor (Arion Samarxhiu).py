@@ -8,11 +8,11 @@ from sklearn.preprocessing import MinMaxScaler
 from DataPreparation import normalize, getMin, getMax
 
 # Check if the normalized data exists, otherwise normalize
-if not os.path.exists("../Data Sources/Normalized_Albania_Information.csv"):
+if not os.path.exists("Data Sources/Normalized_Albania_Information.csv"):
     normalize()
 
 # Load the dataset
-file_path = '../Data Sources/Normalized_Albania_Information.csv'
+file_path = 'Data Sources/Normalized_Albania_Information.csv'
 data = pd.read_csv(file_path)
 
 # Data Preparation

@@ -1,19 +1,18 @@
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import RobustScaler
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
-from tensorflow.keras.models import Sequential # type: ignore
-from tensorflow.keras.layers import GRU, Dense, Dropout # type: ignore
-from tensorflow.keras.losses import Huber # type: ignore
-from tensorflow.keras.regularizers import l2 # type: ignore
-from tensorflow.keras.callbacks import EarlyStopping # type: ignore
-from tensorflow.keras.activations import swish # type: ignore
+from tensorflow.keras.models import Sequential #type: ignore
+from tensorflow.keras.layers import GRU, Dense, Dropout #type: ignore
+from tensorflow.keras.losses import Huber #type: ignore
+from tensorflow.keras.regularizers import l2 #type: ignore
+from tensorflow.keras.callbacks import EarlyStopping #type: ignore
+from tensorflow.keras.activations import swish #type: ignore
 import matplotlib.pyplot as plt
-from DataPreparation import normalize
+from DataPreparation import normalize, getMax, getMin
 import os.path
 
-# Load the new dataset
-if(not os.path.exists("/Data Sources/Normalized_Albania_Information.csv")):
+# Load the dataset
+if not os.path.exists("/Data Sources/Normalized_Albania_Information.csv"):
     normalize()
 
 file_path = 'Data Sources/Normalized_Albania_Information.csv'
@@ -29,6 +28,12 @@ features_to_use = ['Real GDP', 'GDP Growth Rate', 'Population', 'Population Grow
                    'GDP deflator', 'GDP deflator growth rates', 'CPI', 'CPI Growth Rate']
 data = data[['Year'] + features_to_use]
 
+# Manual scaling functions
+real_gdp_min = getMin()
+real_gdp_max = getMax()
+
+def manual_inverse_scale(scaled_values, original_min, original_max):
+    return scaled_values * (original_max - original_min) + original_min
 
 # Create sequences for the GRU model
 def create_sequences(data, time_steps=10):
@@ -38,12 +43,8 @@ def create_sequences(data, time_steps=10):
         y.append(data[i + time_steps, 1])    # Predict 'Real GDP'
     return np.array(X), np.array(y)
 
-# Scale features
-scaler = RobustScaler()
-scaled_features = scaler.fit_transform(data[features_to_use])
-
 # Combine Year and scaled features for sequence generation
-combined_data = np.column_stack([data['Year'], scaled_features])
+combined_data = np.column_stack([data['Year'], data[features_to_use].values])
 
 # Create sequences
 time_steps = 10
@@ -54,14 +55,14 @@ train_size = int(len(X) * 0.8)
 X_train, X_test = X[:train_size], X[train_size:]
 y_train, y_test = y[:train_size], y[train_size:]
 
-# Build the GRU Model with one layer
+# Build the GRU Model
 input_shape = (X_train.shape[1], X_train.shape[2])
 model = Sequential([
     GRU(64, return_sequences=False, kernel_regularizer=l2(0.04), input_shape=input_shape),
     Dropout(0.323),
     Dense(32),
-    Dense(16, activation=swish),   # Swish activation in hidden layer
-    Dense(16, activation='linear'),  # Linear for regression output
+    Dense(16, activation=swish),
+    Dense(16, activation='linear'),
     Dense(1)
 ])
 
@@ -85,18 +86,12 @@ history = model.fit(
 train_predictions = model.predict(X_train)
 test_predictions = model.predict(X_test)
 
-# Ensure the correct number of features is maintained for inverse scaling
-placeholder_train = np.zeros((train_predictions.shape[0], scaled_features.shape[1] - 1))
-placeholder_test = np.zeros((test_predictions.shape[0], scaled_features.shape[1] - 1))
+# Inverse scale predictions
+train_predictions = manual_inverse_scale(train_predictions.flatten(), real_gdp_min, real_gdp_max)
+test_predictions = manual_inverse_scale(test_predictions.flatten(), real_gdp_min, real_gdp_max)
 
-train_predictions = scaler.inverse_transform(np.column_stack([train_predictions, placeholder_train]))[:, 0]
-test_predictions = scaler.inverse_transform(np.column_stack([test_predictions, placeholder_test]))[:, 0]
-
-placeholder_y_train = np.zeros((y_train.shape[0], scaled_features.shape[1] - 1))
-placeholder_y_test = np.zeros((y_test.shape[0], scaled_features.shape[1] - 1))
-
-y_train = scaler.inverse_transform(np.column_stack([y_train.reshape(-1, 1), placeholder_y_train]))[:, 0]
-y_test = scaler.inverse_transform(np.column_stack([y_test.reshape(-1, 1), placeholder_y_test]))[:, 0]
+y_train = manual_inverse_scale(y_train, real_gdp_min, real_gdp_max)
+y_test = manual_inverse_scale(y_test, real_gdp_min, real_gdp_max)
 
 # Compute metrics
 train_rmse = np.sqrt(mean_squared_error(y_train, train_predictions))
@@ -120,7 +115,7 @@ print(f"Test RMSE: {test_rmse:.2f}, Test MAE: {test_mae:.2f}, Test SMAPE: {test_
 
 # Visualize the results
 plt.figure(figsize=(14, 7))
-plt.plot(data['Year'], data['Real GDP'], label='True Real GDP', color='blue')
+plt.plot(data['Year'], manual_inverse_scale(data['Real GDP'], real_gdp_min, real_gdp_max), label='True Real GDP', color='blue')
 plt.plot(data['Year'][time_steps:time_steps+len(train_predictions)], train_predictions, label='Train Predictions', color='green')
 plt.plot(data['Year'][time_steps+len(train_predictions):time_steps+len(train_predictions)+len(test_predictions)], test_predictions, label='Test Predictions', color='red')
 plt.legend()
@@ -131,21 +126,40 @@ plt.show()
 
 # Forecast future Real GDP
 future_steps = 10
-last_sequence = scaled_features[-time_steps:]
+last_sequence = combined_data[-time_steps:, 1:]
 future_predictions = []
 
 for _ in range(future_steps):
     prediction = model.predict(last_sequence.reshape(1, time_steps, -1))
     future_predictions.append(prediction[0, 0])
-    last_sequence = np.append(last_sequence[1:], [[prediction[0, 0]] + [0] * (scaled_features.shape[1] - 1)], axis=0)
+    last_sequence = np.append(last_sequence[1:], [[prediction[0, 0]] + [0] * (len(features_to_use) - 1)], axis=0)
 
-# Inverse transform future predictions
-placeholder_future = np.zeros((len(future_predictions), scaled_features.shape[1] - 1))
-future_predictions = scaler.inverse_transform(np.column_stack([future_predictions, placeholder_future]))[:, 0]
+# Inverse scale future predictions
+future_predictions = manual_inverse_scale(np.array(future_predictions), real_gdp_min, real_gdp_max)
 
 # Generate future years
 future_years = np.arange(data['Year'].iloc[-1] + 1, data['Year'].iloc[-1] + 1 + future_steps)
 
+# Fit a trend using polynomial regression
+trend_coeffs = np.polyfit(data['Year'], manual_inverse_scale(data['Real GDP'], real_gdp_min, real_gdp_max), deg=2)
+trend_func = np.poly1d(trend_coeffs)
+
+# Predict the trend for future years
+future_trend = trend_func(future_years)
+
+# Blend the GRU predictions with the trend
+blended_forecast = 0.7 * future_trend + 0.3 * future_predictions
+
 # Display forecasted data
-forecasted_data = pd.DataFrame({'Year': future_years, 'Forecasted Real GDP': future_predictions})
+forecasted_data = pd.DataFrame({'Year': future_years, 'Blended Forecasted Real GDP': blended_forecast})
 print(forecasted_data)
+
+# Visualize blended forecast
+plt.figure(figsize=(10, 6))
+plt.plot(forecasted_data['Year'], forecasted_data['Blended Forecasted Real GDP'], marker='o', label='Blended Predicted Real GDP')
+plt.xlabel('Year')
+plt.ylabel('Real GDP')
+plt.title('Blended Predicted Real GDP (2035–2044)')
+plt.legend()
+plt.grid(True)
+plt.show()
