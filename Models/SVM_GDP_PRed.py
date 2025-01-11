@@ -4,11 +4,24 @@ from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVR
 from sklearn.pipeline import Pipeline
-from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 from sklearn.model_selection import GridSearchCV
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
+
+def calculate_metrics(y_true, y_pred):
+    # RMSE
+    rmse = np.sqrt(mean_squared_error(y_true, y_pred))
+    
+    # MAE
+    mae = mean_absolute_error(y_true, y_pred)
+    
+    # SMAPE
+    smape = 100 * np.mean(np.abs(y_true - y_pred) / ((np.abs(y_true) + np.abs(y_pred)) / 2))
+    
+    return rmse, mae, smape
+
 
 # Load the dataset
 file_path = '../Data Sources/Normalized_Albania_Information.csv'
@@ -64,9 +77,17 @@ r2 = r2_score(y_test, test_pred)
 
 print(f"Best Model Parameters: {grid_search.best_params_}")
 print(f"Mean Squared Error (MSE): {mse:.2f}")
+
+# Calculate metrics for SVM
+svm_rmse, svm_mae, svm_smape = calculate_metrics(y_test, test_pred)
+
+print("\nSVM Model Metrics:")
+print(f"RMSE: {svm_rmse:.2f}")
+print(f"MAE: {svm_mae:.2f}")
+print(f"SMAPE: {svm_smape:.2f}%")
 print(f"R² Score: {r2:.2f}")
 
-# Visualization
+
 # Visualization
 plt.figure(figsize=(12, 7))
 
