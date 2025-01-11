@@ -2,10 +2,23 @@ import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 from xgboost import XGBRegressor
-from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 from sklearn.impute import SimpleImputer
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
+
+def calculate_metrics(y_true, y_pred):
+    # RMSE
+    rmse = np.sqrt(mean_squared_error(y_true, y_pred))
+    
+    # MAE
+    mae = mean_absolute_error(y_true, y_pred)
+    
+    # SMAPE
+    smape = 100 * np.mean(np.abs(y_true - y_pred) / ((np.abs(y_true) + np.abs(y_pred)) / 2))
+    
+    return rmse, mae, smape
+
 
 # Load the dataset
 file_path = '../Data Sources/Normalized_Albania_Information.csv'
@@ -66,6 +79,13 @@ y_pred = final_model.predict(stacked_test_preds)
 mse = mean_squared_error(y_test, y_pred)
 r2 = r2_score(y_test, y_pred)
 print(f"Mean Squared Error (MSE): {mse:.2f}")
+# Calculate metrics for Hybrid Model
+hybrid_rmse, hybrid_mae, hybrid_smape = calculate_metrics(y_test, y_pred)
+
+print("\nHybrid Model Metrics:")
+print(f"RMSE: {hybrid_rmse:.2f}")
+print(f"MAE: {hybrid_mae:.2f}")
+print(f"SMAPE: {hybrid_smape:.2f}%")
 print(f"R² Score: {r2:.2f}")
 
 # Visualization
