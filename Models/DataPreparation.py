@@ -3,8 +3,6 @@ import numpy as np
 from scipy.optimize import curve_fit
 from sklearn.preprocessing import MinMaxScaler
 
-real_gdp_min = 3.37
-real_gdp_max = 21.81
 
 def normalize():
     # Load data
@@ -56,10 +54,6 @@ def normalize():
 
     # Normalizing the data (except 'Year')
     scaler = MinMaxScaler()
-    global real_gdp_min 
-    real_gdp_min = data['Real GDP'].min()
-    global real_gdp_max 
-    real_gdp_max = data['Real GDP'].max()
     columns_to_normalize = data.columns.difference(['Year'])
 
     data[columns_to_normalize] = scaler.fit_transform(data[columns_to_normalize])
@@ -117,9 +111,13 @@ def calculate_growth_rate(data, feature):
     return data
 
 def getMin():
-    global real_gdp_min
-    return real_gdp_min
+    file_path = 'Data Sources/Albania Information.csv'
+    data = pd.read_csv(file_path)
+
+    return data["Real GDP"].min()
 
 def getMax():
-    global real_gdp_max
-    return real_gdp_max
+    file_path = 'Data Sources/Albania Information.csv'
+    data = pd.read_csv(file_path)
+
+    return data["Real GDP"].max()
