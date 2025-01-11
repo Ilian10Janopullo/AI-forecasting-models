@@ -1,11 +1,11 @@
 import pandas as pd
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score
 import numpy as np
 import os.path
-from sklearn.preprocessing import MinMaxScaler
 from DataPreparation import normalize, getMin, getMax
+import matplotlib.pyplot as plt
 
 # Check if the normalized data exists, otherwise normalize
 if not os.path.exists("../Data Sources/Normalized_Albania_Information.csv"):
@@ -32,16 +32,26 @@ real_gdp_max = getMax()
 X = data[['Year'] + features_to_use[1:]]  # Use all features except 'Real GDP'
 y = data['Real GDP']
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
 
-# Train the model
-model = RandomForestRegressor(n_estimators=100, random_state=42)
-model.fit(X_train, y_train)
+# Initialize models
+random_forest = RandomForestRegressor(n_estimators=300)
+gradient_boosting = GradientBoostingRegressor(n_estimators=300, learning_rate=0.2, max_depth=4)
 
-# Evaluate the model
-y_pred = model.predict(X_test)
-print("Mean Squared Error:", mean_squared_error(y_test, y_pred))
-print("R² Score:", r2_score(y_test, y_pred))
+# Train the models
+random_forest.fit(X_train, y_train)
+gradient_boosting.fit(X_train, y_train)
+
+# Predict using both models
+rf_predictions = random_forest.predict(X_test)
+gb_predictions = gradient_boosting.predict(X_test)
+
+# Combine predictions (hybrid model: simple average)
+hybrid_predictions = (rf_predictions + gb_predictions) / 2
+
+# Evaluate the hybrid model
+print("Hybrid Model - Mean Squared Error:", mean_squared_error(y_test, hybrid_predictions))
+print("Hybrid Model - R² Score:", r2_score(y_test, hybrid_predictions))
 
 # Predict Real GDP for 2035–2044
 future_years = pd.DataFrame({'Year': np.arange(2035, 2045)})
@@ -49,11 +59,15 @@ future_features = future_years.copy()
 
 # Include feature engineering or assumptions for future values
 for feature in features_to_use[1:]:
-    # Project features based on historical trends
-    future_features[feature] = np.polyval(np.polyfit(data['Year'], data[feature], 1), future_years['Year'])
+    coeffs = np.polyfit(data['Year'], data[feature], 2)
+    future_features[feature] = np.polyval(coeffs, future_years['Year'])
 
-# Predict
-future_years['Predicted Real GDP'] = model.predict(future_features)
+# Predict future Real GDP using both models
+rf_future_predictions = random_forest.predict(future_features)
+gb_future_predictions = gradient_boosting.predict(future_features)
+
+# Combine predictions for the hybrid model
+future_years['Predicted Real GDP'] = (rf_future_predictions + gb_future_predictions) / 2
 
 # Reverse normalization for Predicted Real GDP
 future_years['Predicted Real GDP'] = future_years['Predicted Real GDP'] * (real_gdp_max - real_gdp_min) + real_gdp_min
@@ -62,13 +76,11 @@ future_years['Predicted Real GDP'] = future_years['Predicted Real GDP'] * (real_
 print(future_years)
 
 # Visualize the predictions
-import matplotlib.pyplot as plt
-
 plt.figure(figsize=(10, 6))
-plt.plot(future_years['Year'], future_years['Predicted Real GDP'], marker='o', label='Predicted Real GDP')
+plt.plot(future_years['Year'], future_years['Predicted Real GDP'], marker='o', label='Hybrid Model Predicted Real GDP')
 plt.xlabel('Year')
 plt.ylabel('Real GDP')
-plt.title('Predicted Real GDP (2035–2044)')
+plt.title('Predicted Real GDP (2035–2044) with Hybrid Model')
 plt.legend()
 plt.grid(True)
 plt.show()
